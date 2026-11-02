@@ -126,7 +126,6 @@ async def on_command_error(ctx: commands.context.Context, error: commands.errors
     log.warning(f'an error occurred but was handled by the command error handler, error message : {error}')
 
 
-if __name__ == '__main__':
     import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
@@ -148,4 +147,5 @@ def run_fake_server():
 
 # 3. Spin it up in a separate thread so it doesn't block your Discord bot
 threading.Thread(target=run_fake_server, daemon=True).start()
+if __name__ == '__main__':
     bot.run(os.getenv('BOT_TOKEN'))
