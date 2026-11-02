@@ -23,7 +23,7 @@ auto_repair_mismatched_clients: false
 init_latest_tweet_on_startup: true
 
 embed:
-  type: 'built_in'
+  type: 'proxy'
   trans_default_lang: 'en'
 
   built_in:
@@ -41,7 +41,7 @@ embed:
     
   proxy:
     service: 'fx'
-    domain_name: 'fxtwitter'
+    domain_name: 'fixupx'
     original_url_button: true
     auto_translation: false
 
