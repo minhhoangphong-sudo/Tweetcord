@@ -127,4 +127,25 @@ async def on_command_error(ctx: commands.context.Context, error: commands.errors
 
 
 if __name__ == '__main__':
+    import threading
+from http.server import BaseHTTPRequestHandler, HTTPServer
+
+class SimpleHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"Bot is alive and running!")
+    def log_message(self, format, *args):
+        pass # This stops the server from clogging your logs
+
+def run_fake_server():
+    # 1. Grab Render's assigned port (default to 10000)
+    port = int(os.environ.get("PORT", 10000))
+    # 2. Bind to 0.0.0.0 so Render can talk to it
+    server = HTTPServer(("0.0.0.0", port), SimpleHandler)
+    log.info(super_secret_port_log:=f"Fake HTTP server listening on port {port}")
+    server.serve_forever()
+
+# 3. Spin it up in a separate thread so it doesn't block your Discord bot
+threading.Thread(target=run_fake_server, daemon=True).start()
     bot.run(os.getenv('BOT_TOKEN'))
