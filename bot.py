@@ -6,6 +6,9 @@ from discord import app_commands
 from discord.ext import commands
 from dotenv import load_dotenv
 
+import threading
+from http.server import BaseHTTPRequestHandler, HTTPServer
+
 from src.checker import build_and_validate_configs, check_env, check_db, check_upgrade
 from src.log import setup_logger
 
@@ -126,8 +129,6 @@ async def on_command_error(ctx: commands.context.Context, error: commands.errors
     log.warning(f'an error occurred but was handled by the command error handler, error message : {error}')
 
 
-    import threading
-from http.server import BaseHTTPRequestHandler, HTTPServer
 
 class SimpleHandler(BaseHTTPRequestHandler):
     def do_GET(self):
