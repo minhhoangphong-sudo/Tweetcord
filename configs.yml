@@ -1,13 +1,13 @@
 locale: 'en'
 prefix: 'ko!'
-activity_name: '{count} accounts'
+activity_name: '{count} Senseis'
 activity_type: 'watching'
 users_list_pagination_size: 8
 users_list_page_counter_position: 'title'
 enable_prefix_commands_in_guild: true
 use_existing_sessions_first: true
 
-tweets_check_period: 18
+tweets_check_period: 20
 tweets_updater_retry_delay: 3
 tasks_monitor_check_period: 1
 tasks_monitor_log_period: 5
@@ -46,6 +46,6 @@ embed:
     auto_translation: false
 
 default_message: |
-  Sensei! **{author}** just {action} here: 
+  {mention} Sensei! **{author}** just {action} here: 
   {url}
 emoji_auto_format: true
