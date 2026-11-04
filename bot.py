@@ -140,7 +140,7 @@ class SimpleHandler(BaseHTTPRequestHandler):
 
 def run_fake_server():
     # 1. Grab Render's assigned port (default to 10000)
-    port = int(os.environ.get("PORT", 10000))
+    port = int(os.environ.get("PORT", 8080))
     # 2. Bind to 0.0.0.0 so Render can talk to it
     server = HTTPServer(("0.0.0.0", port), SimpleHandler)
     log.info(super_secret_port_log:=f"Fake HTTP server listening on port {port}")
