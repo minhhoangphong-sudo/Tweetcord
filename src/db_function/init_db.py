@@ -4,6 +4,7 @@ import aiosqlite
 
 from src.log import setup_logger
 from src.utils import get_utcnow
+from src.db_function import turso_sync
 
 log = setup_logger(__name__)
 
@@ -11,7 +12,10 @@ log = setup_logger(__name__)
 async def init_db():
     data_path = os.getenv('DATA_PATH')
     if not os.path.exists(data_path):
-        os.mkdir(data_path)
+        os.makedirs(data_path)
+
+    # Pull the database from Turso first (no-op if Turso isn't configured)
+    await turso_sync.restore()
 
     db_path = os.path.join(data_path, 'tracked_accounts.db')
     db_exists = os.path.exists(db_path)
