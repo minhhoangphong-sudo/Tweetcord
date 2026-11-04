@@ -181,8 +181,7 @@ def has_allowed_role():
         allowed_users = get_allowed_users(interaction.guild.id)
         if not allowed_ids and not allowed_users:
             raise NotAllowed(
-                "No role or user has been allowed to use this command yet. "
-                "A server admin can allow one with `/access add`."
+                "Permission denied."
             )
 
         if member.id in allowed_users or any(role.id in allowed_ids for role in member.roles):
@@ -190,8 +189,8 @@ def has_allowed_role():
 
         if allowed_ids:
             mentions = " ".join(f"<@&{rid}>" for rid in sorted(allowed_ids))
-            raise NotAllowed(f"You need one of these roles to use this command: {mentions}")
-        raise NotAllowed("You aren't allowed to use this command. Ask a server admin to allow you.")
+            raise NotAllowed(f"Permission denied.")
+        raise NotAllowed("Permission denied.")
 
     return app_commands.check(predicate)
 
@@ -205,6 +204,6 @@ def admin_only():
             raise NotAnAdmin("This command can only be used inside a server.")
         if is_superuser(member.id) or member.guild_permissions.administrator:
             return True
-        raise NotAnAdmin("Only server administrators can use this command.")
+        raise NotAnAdmin("Permission denied.")
 
     return app_commands.check(predicate)
