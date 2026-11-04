@@ -246,43 +246,43 @@ class AccountTracker():
                         if not isinstance(e, discord.errors.Forbidden):
                             log.error(f"an error occurred at {channel.mention} while sending notification: {e}")
                             
-    async def _send_notification(
-    self,
-    channel: discord.abc.Messageable,
-    msg: str,
-    view: discord.ui.View | None,
-    embeds: list[discord.Embed] | None
-):
-    allowed = discord.AllowedMentions(
-        everyone=False,
-        users=False,
-        roles=True,
-        replied_user=False
-    )
-
-    if EMBED_TYPE == 'proxy':
-        sent = await channel.send(
-            msg,
-            view=view,
-            allowed_mentions=allowed
-        )
-    else:
-        file = discord.File(
-            f'images/{get_footer_name()}',
-            filename='footer.png'
-        )
-        sent = await channel.send(
-            msg,
-            file=file,
-            embeds=embeds,
-            view=view,
-            allowed_mentions=allowed
+        async def _send_notification(
+        self,
+        channel: discord.abc.Messageable,
+        msg: str,
+        view: discord.ui.View | None,
+        embeds: list[discord.Embed] | None
+    ):
+        allowed = discord.AllowedMentions(
+            everyone=False,
+            users=False,
+            roles=True,
+            replied_user=False
         )
 
-    log.info(
-        f"Discord recognized role mentions: "
-        f"{[role.id for role in sent.role_mentions]}"
-    )
+        if EMBED_TYPE == 'proxy':
+            sent = await channel.send(
+                msg,
+                view=view,
+                allowed_mentions=allowed
+            )
+        else:
+            file = discord.File(
+                f'images/{get_footer_name()}',
+                filename='footer.png'
+            )
+            sent = await channel.send(
+                msg,
+                file=file,
+                embeds=embeds,
+                view=view,
+                allowed_mentions=allowed
+            )
+
+        log.info(
+            f"Discord recognized role mentions: "
+            f"{[role.id for role in sent.role_mentions]}"
+        )
 
     async def _retry_send_notification(self, channel: discord.abc.Messageable, msg: str, view: discord.ui.View | None, embeds: list[discord.Embed] | None):
         delay = configs.get('notification_retry_delay', 2)
