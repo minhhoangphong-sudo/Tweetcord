@@ -28,6 +28,7 @@ if not build_and_validate_configs():
 from configs.load_configs import configs
 from src.i18n import init_i18n
 from src.db_function.init_db import init_db
+from src.db_function import turso_sync
 from src.db_function.repair_db import auto_repair_mismatched_clients
 from src.presence_updater import update_presence
 
@@ -42,9 +43,20 @@ intents = discord.Intents(
 bot = commands.Bot(command_prefix=configs['prefix'], intents=intents)
 
 
+_original_close = bot.close
+
+
+async def _close_and_push():
+    await turso_sync.shutdown()
+    await _original_close()
+
+bot.close = _close_and_push
+
+
 @bot.event
 async def on_ready():
     await init_db()
+    turso_sync.start_background_push()
     check_upgrade()
         
     invalid_clients = await check_db()
@@ -67,51 +79,6 @@ async def on_ready():
     log.info(f'{bot.user} is online')
     slash = await bot.tree.sync()
     log.info(f'synced {len(slash)} slash commands')
-
-
-@bot.command()
-@commands.is_owner()
-async def load(ctx: commands.context.Context, extension):
-    await bot.load_extension(f'cogs.{extension}')
-    await ctx.send(f'Loaded {extension} done.')
-
-
-@bot.command()
-@commands.is_owner()
-async def unload(ctx: commands.context.Context, extension):
-    await bot.unload_extension(f'cogs.{extension}')
-    await ctx.send(f'Un - Loaded {extension} done.')
-
-
-@bot.command()
-@commands.is_owner()
-async def reload(ctx: commands.context.Context, extension):
-    await bot.reload_extension(f'cogs.{extension}')
-    await ctx.send(f'Re - Loaded {extension} done.')
-
-
-@bot.command()
-@commands.is_owner()
-async def download_log(ctx: commands.context.Context):
-    message = await ctx.send(file=discord.File('console.log'))
-    await message.delete(delay=15)
-
-
-@bot.command()
-@commands.is_owner()
-async def download_data(ctx: commands.context.Context):
-    message = await ctx.send(file=discord.File(os.path.join(os.getenv('DATA_PATH'), 'tracked_accounts.db')))
-    await message.delete(delay=15)
-
-
-@bot.command()
-@commands.is_owner()
-async def upload_data(ctx: commands.context.Context):
-    raw = await [attachment for attachment in ctx.message.attachments if attachment.filename[-3:] == '.db'][0].read()
-    with open(os.path.join(os.getenv('DATA_PATH'), 'tracked_accounts.db'), 'wb') as wbf:
-        wbf.write(raw)
-    message = await ctx.send('successfully uploaded data')
-    await message.delete(delay=5)
 
 
 @bot.event
