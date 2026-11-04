@@ -7,6 +7,7 @@ from discord.ext import commands
 
 from core.classes import Cog_Extension
 from src.i18n import t
+from src.role_check import has_allowed_role
 from src.log import setup_logger
 from src.sync_db.sync_db import sync_db
 from src.db_function.readonly_db import connect_readonly
@@ -16,8 +17,8 @@ log = setup_logger(__name__)
 
 class Sync(Cog_Extension):
 
-    @app_commands.default_permissions(administrator=True)
     @app_commands.command(name='sync', description=t('commands.sync.description'))
+    @has_allowed_role()
     async def sync(self, itn: discord.Interaction):
         """To sync the notification of new Twitter account with database, use this command."""
 

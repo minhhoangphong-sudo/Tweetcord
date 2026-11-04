@@ -15,6 +15,7 @@ from src.discord_ui.modal import CustomizeSettingsModal
 from src.log import setup_logger
 from src.notification.account_tracker import AccountTracker
 from src.permission import ADMINISTRATOR
+from src.role_check import has_allowed_role
 from src.db_function.readonly_db import connect_readonly
 from src.utils import get_accounts, get_lock, get_utcnow, validate_and_normalize_language
 from src.presence_updater import update_presence
@@ -27,11 +28,12 @@ class Notification(Cog_Extension):
         super().__init__(bot)
         self.account_tracker = AccountTracker(bot)
 
-    add_group = app_commands.Group(name='add', description=t('commands.add.description'), default_permissions=ADMINISTRATOR)
-    remove_group = app_commands.Group(name='remove', description=t('commands.remove.description'), default_permissions=ADMINISTRATOR)
-    customize_group = app_commands.Group(name='customize', description=t('commands.customize.description'), default_permissions=ADMINISTRATOR)
+    add_group = app_commands.Group(name='add', description=t('commands.add.description'))
+    remove_group = app_commands.Group(name='remove', description=t('commands.remove.description'))
+    customize_group = app_commands.Group(name='customize', description=t('commands.customize.description'))
 
     @add_group.command(name='notifier', description=t('commands.add.notifier.description'))
+    @has_allowed_role()
     @app_commands.choices(
         enable_type=[app_commands.Choice(name=t('commands.add.notifier.choices.enable_type.all_default'), value='11'), app_commands.Choice(name=t('commands.add.notifier.choices.enable_type.retweet_only'), value='10'), app_commands.Choice(name=t('commands.add.notifier.choices.enable_type.quote_only'), value='01'), app_commands.Choice(name=t('commands.add.notifier.choices.enable_type.tweet_only'), value='00')],
         media_type=[app_commands.Choice(name=t('commands.add.notifier.choices.media_type.all_default'), value='11'), app_commands.Choice(name=t('commands.add.notifier.choices.media_type.no_media'), value='10'), app_commands.Choice(name=t('commands.add.notifier.choices.media_type.media_only'), value='01')],
@@ -163,6 +165,7 @@ class Notification(Cog_Extension):
             await itn.followup.send(t('notification.add.success_update', username=new_user.username, client_used=account_used), ephemeral=True)
 
     @remove_group.command(name='notifier', description=t('commands.remove.notifier.description'))
+    @has_allowed_role()
     @app_commands.rename(channel_id='channel')
     @app_commands.describe(
         channel_id=t('commands.remove.notifier.params.channel'),
@@ -242,6 +245,7 @@ class Notification(Cog_Extension):
                     await db.rollback()
 
     @customize_group.command(name='settings', description=t('commands.customize.settings.description'))
+    @has_allowed_role()
     @app_commands.rename(channel_id='channel')
     @app_commands.describe(
         channel_id=t('commands.customize.settings.params.channel'),
@@ -274,6 +278,7 @@ class Notification(Cog_Extension):
                     await itn.response.send_message(t('notification.customize.settings.notifier_not_found', username=username, channel_mention=channel.mention), ephemeral=True)
 
     @customize_group.command(name='translation', description=t('commands.customize.translation.description'))
+    @has_allowed_role()
     @app_commands.describe(
         username=t('commands.customize.translation.params.username'),
         language=t('commands.customize.translation.params.language'),

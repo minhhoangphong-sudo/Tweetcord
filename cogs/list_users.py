@@ -10,6 +10,7 @@ from configs.constants import AUTOCOMPLETE_MAX_CHOICES, AUTOCOMPLETE_MAX_CHOICE_
 from configs.load_configs import configs
 from src.i18n import t
 from src.permission import ADMINISTRATOR
+from src.role_check import has_allowed_role
 from src.utils import str_to_bool as stb
 from src.db_function.readonly_db import connect_readonly
 from src.discord_ui.fetch_tracked_channels import fetch_tracked_channels
@@ -27,9 +28,10 @@ def symbol(value: str) -> str:
 
 class ListUsers(Cog_Extension):
 
-    list_group = app_commands.Group(name='list', description=t('commands.list.description'), default_permissions=ADMINISTRATOR)
+    list_group = app_commands.Group(name='list', description=t('commands.list.description'))
 
     @list_group.command(name='users', description=t('commands.list.users.description'))
+    @has_allowed_role()
     @app_commands.describe(
         account=t('commands.list.users.params.account'),
         channel=t('commands.list.users.params.channel'),
