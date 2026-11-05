@@ -21,13 +21,13 @@ PSIZE = configs['users_list_pagination_size']
 PCPOS = configs['users_list_page_counter_position']
 
 ADMIN_ROOTS = {'access'}
-OWNER_ROOTS = {'load', 'unload', 'reload', 'download_log', 'download_data', 'upload_data'}
+OWNER_ROOTS = {'load', 'unload', 'reload', 'download_log', 'download_data', 'upload_data', 'send'}
 
 # Shown in this order; anything not listed goes at the end, alphabetically.
 ORDER = [
     'help', 'add notifier', 'remove notifier', 'customize settings', 'customize translation',
     'list users', 'sync', 'yap', 'access add', 'access remove', 'access list', 'access clear',
-    'load', 'unload', 'reload', 'download_log', 'download_data', 'upload_data',
+    'load', 'unload', 'reload', 'download_log', 'download_data', 'upload_data', 'send',
 ]
 
 
