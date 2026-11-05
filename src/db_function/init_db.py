@@ -5,6 +5,7 @@ import aiosqlite
 from src.log import setup_logger
 from src.utils import get_utcnow
 from src.db_function import turso_sync
+from src.keyword_filter import TABLE_SQL as KEYWORD_FILTER_SQL
 
 log = setup_logger(__name__)
 
@@ -20,7 +21,12 @@ async def init_db():
     db_path = os.path.join(data_path, 'tracked_accounts.db')
     db_exists = os.path.exists(db_path)
     
-    if db_exists: return
+    if db_exists:
+        # databases created before keyword filters existed get the new table here
+        async with aiosqlite.connect(db_path) as db:
+            await db.execute(KEYWORD_FILTER_SQL)
+            await db.commit()
+        return
 
     async with aiosqlite.connect(db_path) as db:
         await db.executescript("""
@@ -29,6 +35,7 @@ async def init_db():
             CREATE TABLE IF NOT EXISTS notification (user_id TEXT, channel_id TEXT, role_id TEXT, enabled INTEGER DEFAULT 1, enable_type TEXT DEFAULT 11, enable_media_type TEXT DEFAULT 11, customized_msg TEXT DEFAULT NULL, FOREIGN KEY (user_id) REFERENCES user (id), FOREIGN KEY (channel_id) REFERENCES channel (id), PRIMARY KEY(user_id, channel_id));
             CREATE TABLE IF NOT EXISTS server_user_config (server_id TEXT, user_id TEXT, translate TEXT, PRIMARY KEY(server_id, user_id), FOREIGN KEY (user_id) REFERENCES user (id));
         """)
+        await db.execute(KEYWORD_FILTER_SQL)
         await db.commit()
 
     log.info('database file not found, a blank database file has been created')
