@@ -3,7 +3,8 @@ cogs/help.py - /help lists the commands you can use and what they do.
 
 The list is built from the commands the bot has registered, so it never goes
 out of date. Admin-only and owner-only commands only show up for the people
-who can run them. The reply is ephemeral and paginated like /list users.
+who can run them. The reply is public and paginated like /list users, except when
+the viewer is an admin or owner: their list includes the private commands, so it is ephemeral.
 """
 
 import discord
@@ -25,7 +26,7 @@ OWNER_ROOTS = {'load', 'unload', 'reload', 'download_log', 'download_data', 'upl
 # Shown in this order; anything not listed goes at the end, alphabetically.
 ORDER = [
     'help', 'add notifier', 'remove notifier', 'customize settings', 'customize translation',
-    'list users', 'sync', 'access add', 'access remove', 'access list', 'access clear',
+    'list users', 'sync', 'yap', 'access add', 'access remove', 'access list', 'access clear',
     'load', 'unload', 'reload', 'download_log', 'download_data', 'upload_data',
 ]
 
@@ -89,7 +90,7 @@ class Help(Cog_Extension):
                 embed.set_footer(text=t('list.footer', page=page, total=total_pages))
             return embed, total_pages
 
-        await Pagination(itn, get_page).navegate()
+        await Pagination(itn, get_page).navegate(ephemeral=is_admin or is_owner)
 
 
 async def setup(bot: commands.Bot):

@@ -22,7 +22,7 @@ class Sync(Cog_Extension):
     async def sync(self, itn: discord.Interaction):
         """To sync the notification of new Twitter account with database, use this command."""
 
-        await itn.response.defer(ephemeral=True)
+        await itn.response.defer()
 
         async with connect_readonly(os.path.join(os.getenv('DATA_PATH'), 'tracked_accounts.db')) as db:
             db.row_factory = aiosqlite.Row
@@ -31,7 +31,7 @@ class Sync(Cog_Extension):
 
         self.bot.loop.create_task(sync_db(follow_list))
 
-        await itn.followup.send(t('sync.background'), ephemeral=True)
+        await itn.followup.send(t('sync.background'))
 
 
 async def setup(bot: commands.Bot):
