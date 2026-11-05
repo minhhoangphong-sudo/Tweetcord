@@ -72,7 +72,7 @@ class CustomizeSettingsModal(ui.Modal, title='customize settings'):
         self.add_item(self.customized_msg_label)
 
     async def on_submit(self, itn: discord.Interaction):
-        await itn.response.defer(ephemeral=True)
+        await itn.response.defer()
 
         # Convert checkbox values back to '11', '10', '01', '00'
         selected_types = self.enable_type_checkbox.values
@@ -92,4 +92,4 @@ class CustomizeSettingsModal(ui.Modal, title='customize settings'):
                 await db.execute('UPDATE notification SET enable_type = ?, enable_media_type = ?, customized_msg = ?, role_id = ? WHERE user_id = ? AND channel_id = ?', (new_enable_type, new_media_type, customized_msg, role_id, self.user_id, str(self.channel.id)))
                 await db.commit()
 
-        await itn.followup.send(t('modal.customize_settings.success'), ephemeral=True)
+        await itn.followup.send(t('modal.customize_settings.success'))

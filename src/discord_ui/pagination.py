@@ -10,13 +10,20 @@ class Pagination(discord.ui.View):
         self.index = 1
         super().__init__(timeout=100)
 
-    async def navegate(self):
+    async def navegate(self, ephemeral: bool = False):
         emb, self.total_pages = await self.get_page(self.index)
         if self.total_pages == 1:
-            await self.interaction.response.send_message(embed=emb, ephemeral=True)
+            await self.interaction.response.send_message(embed=emb, ephemeral=ephemeral)
         elif self.total_pages > 1:
             self.update_buttons()
-            await self.interaction.response.send_message(embed=emb, view=self, ephemeral=True)
+            await self.interaction.response.send_message(embed=emb, view=self, ephemeral=ephemeral)
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        # The message may be public, so only the person who ran the command can flip pages.
+        if interaction.user.id != self.interaction.user.id:
+            await interaction.response.send_message('Only the person who ran this command can change pages.', ephemeral=True)
+            return False
+        return True
 
     async def edit_page(self, interaction: discord.Interaction):
         emb, self.total_pages = await self.get_page(self.index)
