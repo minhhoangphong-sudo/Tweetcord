@@ -15,6 +15,7 @@ from configs.load_configs import configs, IS_TRANSLATION_ENABLED
 from src.i18n import t
 from src.log import setup_logger
 from src.notification.display_tools import gen_embed, get_action, get_footer_name
+from src.keyword_filter import load_rules, passes_filter, tweet_search_text
 from src.notification.get_tweets import get_tweets
 from src.notification.utils import is_match_media_type, is_match_type, replace_emoji, get_parsed_tweet
 from src.utils import get_accounts, get_lock, get_utcnow
@@ -178,8 +179,11 @@ class AccountTracker():
             if not user:
                 continue
 
+            keyword_rules = await load_rules(user['id'])
+
             for tweet in latest_tweets:
                 log.info(f'find a new tweet from {username}')
+                tweet_text = tweet_search_text(tweet) if keyword_rules else ''
                 
                 content_cache: dict[str, tuple[list[discord.Embed], discord.ui.View, ParsedTweet]] = {}
                 
@@ -195,6 +199,9 @@ class AccountTracker():
                 for data in notifications:
                     channel = self.bot.get_channel(int(data['channel_id']))
                     if channel is None or not is_match_type(tweet, data['enable_type']):
+                        continue
+
+                    if keyword_rules and not passes_filter(keyword_rules, channel.guild.id, user['id'], data['channel_id'], tweet_text):
                         continue
                     
                     lang = (data['server_translate'] or configs['embed']['trans_default_lang']) if IS_TRANSLATION_ENABLED else None
@@ -247,28 +254,11 @@ class AccountTracker():
                             log.error(f"an error occurred at {channel.mention} while sending notification: {e}")
                             
     async def _send_notification(self, channel: discord.abc.Messageable, msg: str, view: discord.ui.View | None, embeds: list[discord.Embed] | None):
-        allowed_mentions = discord.AllowedMentions(
-            everyone=False,
-            users=False,
-            roles=True,
-            replied_user=False
-        )
-
         if EMBED_TYPE == 'proxy':
-            await channel.send(
-                msg,
-                view=view,
-                allowed_mentions=allowed_mentions
-            )
+            await channel.send(msg, view=view)
         else:
             file = discord.File(f'images/{get_footer_name()}', filename='footer.png')
-            await channel.send(
-                msg,
-                file=file,
-                embeds=embeds,
-                view=view,
-                allowed_mentions=allowed_mentions
-            )
+            await channel.send(msg, file=file, embeds=embeds, view=view)
 
     async def _retry_send_notification(self, channel: discord.abc.Messageable, msg: str, view: discord.ui.View | None, embeds: list[discord.Embed] | None):
         delay = configs.get('notification_retry_delay', 2)
