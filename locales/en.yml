@@ -14,12 +14,18 @@ notification:
     settings:
       channel_not_found: "can't find channel {channel_id}!"
       notifier_not_found: "can't find notifier {username} in {channel_mention}!"
-    translation:
-      not_enabled: 'Translation is not enabled in configs!'
-      invalid_lang: 'Invalid language code!'
-      success_default: "Successfully restored {username}'s translation setting to default ({default_lang})!"
-      success_set: "Successfully set {username}'s translation language to {lang_code}!"
-      user_not_found: "Can't find twitter user {username} in this server!"
+
+  translation:
+    not_supported: "Translation isn't available with the current embed service (only the built-in embeds and FxTwitter/FixupX links can be translated)."
+    user_not_found: "`{username}` is not currently tracked on this server."
+    invalid_language: 'That translation language is not supported.'
+    invalid_toggle: 'Choose either On or Off.'
+    language:
+      success: 'Translation for **{username}** is set to **{language}** (`{code}`).'
+      currently_off: 'Translation is currently **off** for this user. Turn it on with `/translation toggle`.'
+    toggle:
+      enabled: 'Translation for **{username}** is now **ON** (translating to **{language}**).'
+      disabled: 'Translation for **{username}** is now **OFF**.'
 
 sync:
   background: 'Synchronizing in the background...'
@@ -40,6 +46,7 @@ list:
   label_text: 'text'
   label_media: 'media'
   label_using: 'using'
+  label_translated: 'translated to {language}'
 
 modal:
   customize_settings:
@@ -117,11 +124,21 @@ commands:
       params:
         channel: 'The channel id which set to delivers notifications.'
         username: 'The username of the twitter user you want to set customized message.'
-    translation:
-      description: 'Set customized translation language for a tracked account.'
+  translation:
+    description: 'Manage translation of notification links'
+    language:
+      description: 'Set the translation language for a tracked user.'
       params:
-        username: 'The username of the tracked account you want to set customized translation language.'
-        language: 'The language code you want to translate to (e.g. en, ja). Leave it empty to use default.'
+        language: 'The language to translate notifications into.'
+        username: 'The username of the tracked user.'
+    toggle:
+      description: 'Turn translation on or off for a tracked user.'
+      params:
+        on_off: 'Turn translation on or off.'
+        username: 'The username of the tracked user.'
+      choices:
+        enabled: 'On'
+        disabled: 'Off'
   list:
     description: 'List something'
     users:
