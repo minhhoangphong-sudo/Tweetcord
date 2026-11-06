@@ -11,13 +11,14 @@ from discord.ext import commands
 from tweety import Twitter
 
 from core.classes import ParsedTweet
-from configs.load_configs import configs, IS_TRANSLATION_ENABLED
+from configs.load_configs import configs
 from src.i18n import t
 from src.log import setup_logger
 from src.notification.display_tools import gen_embed, get_action, get_footer_name
 from src.keyword_filter import load_rules, passes_filter, tweet_search_text
 from src.notification.get_tweets import get_tweets
 from src.notification.utils import is_match_media_type, is_match_type, replace_emoji, get_parsed_tweet
+from src.translation import resolve_translation
 from src.utils import get_accounts, get_lock, get_utcnow
 from src.db_function.readonly_db import connect_readonly
 from src.db_function.init_db import init_latest_tweet_on_startup
@@ -205,12 +206,7 @@ class AccountTracker():
                     if keyword_rules and not passes_filter(keyword_rules, channel.guild.id, user['id'], data['channel_id'], tweet_text):
                         continue
                     
-                    translation_enabled = (
-                        bool(data['server_translation_enabled'])
-                        if data['server_translation_enabled'] is not None
-                        else IS_TRANSLATION_ENABLED
-                    )
-                    lang = (data['server_translate'] or 'en') if translation_enabled else None
+                    lang = resolve_translation(data['server_translation_enabled'], data['server_translate'])
                     
                     if lang not in content_cache:
                         p_tweet, embeds = None, None
@@ -233,7 +229,7 @@ class AccountTracker():
                         url = tweet.url
                         if EMBED_TYPE == 'proxy':
                             url = re.sub(r'(?:twitter|x)\.com', f'{DOMAIN_NAME}.com', url)
-                            if translation_enabled:
+                            if lang:
                                 url += f"/{lang}"
 
                         mention = f"{channel.guild.get_role(int(data['role_id'])).mention} " if data['role_id'] else ''
