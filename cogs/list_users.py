@@ -7,7 +7,7 @@ from discord.ext import commands
 
 from core.classes import Cog_Extension
 from configs.constants import AUTOCOMPLETE_MAX_CHOICES, AUTOCOMPLETE_MAX_CHOICE_LENGTH
-from configs.load_configs import configs
+from configs.load_configs import configs, IS_TRANSLATION_ENABLED
 from src.i18n import t
 from src.permission import ADMINISTRATOR
 from src.role_check import has_allowed_role
@@ -15,6 +15,7 @@ from src.utils import str_to_bool as stb
 from src.db_function.readonly_db import connect_readonly
 from src.discord_ui.fetch_tracked_channels import fetch_tracked_channels
 from src.discord_ui.pagination import Pagination
+from src.translation import get_translation_language_name
 
 CHECK = '\u2705'
 XMARK = '\u274C'
@@ -50,22 +51,58 @@ class ListUsers(Cog_Extension):
 
         async with connect_readonly(os.path.join(os.getenv('DATA_PATH'), 'tracked_accounts.db')) as db:
             async with db.execute("""
-                SELECT user.username, channel.id, notification.role_id, notification.enable_type, notification.enable_media_type, user.client_used
+                SELECT
+                    user.username,
+                    channel.id,
+                    notification.role_id,
+                    notification.enable_type,
+                    notification.enable_media_type,
+                    user.client_used,
+                    COALESCE(server_user_config.translate, 'en'),
+                    server_user_config.translation_enabled
                 FROM user
                 JOIN notification
-                ON user.id = notification.user_id
+                  ON user.id = notification.user_id
                 JOIN channel
-                ON notification.channel_id = channel.id
+                  ON notification.channel_id = channel.id
+                LEFT JOIN server_user_config
+                  ON server_user_config.server_id = channel.server_id
+                 AND server_user_config.user_id = user.id
                 WHERE channel.server_id = ? AND notification.enabled = 1
                 AND (user.client_used = ? OR '' = ?)
                 AND (channel.id = ? OR '' = ?)
             """, (str(server_id), account, account, channel, channel)) as cursor:
                 user_channel_role_data = await cursor.fetchall()
 
-        formatted_data = [
-            f"{i + 1}. ```{username}``` <#{channel_id}>{f' <@&{role_id}>' if role_id else ''} {symbol(enable_type[0])}{t('list.label_retweet')} {symbol(enable_type[1])}{t('list.label_quote')} {symbol(enable_media_type[0])}{t('list.label_text')} {symbol(enable_media_type[1])}{t('list.label_media')}, {t('list.label_using')} {client_used}"
-            for i, (username, channel_id, role_id, enable_type, enable_media_type, client_used) in enumerate(user_channel_role_data)
-        ]
+        formatted_data = []
+        for i, (
+            username,
+            channel_id,
+            role_id,
+            enable_type,
+            enable_media_type,
+            client_used,
+            translation_language,
+            translation_enabled_override
+        ) in enumerate(user_channel_role_data):
+            translation_enabled = (
+                bool(translation_enabled_override)
+                if translation_enabled_override is not None
+                else IS_TRANSLATION_ENABLED
+            )
+            translation_label = (
+                f" (translated to {get_translation_language_name(translation_language)})"
+                if translation_enabled else ''
+            )
+            formatted_data.append(
+                f"{i + 1}. ```{username}```{translation_label} <#{channel_id}>"
+                f"{f' <@&{role_id}>' if role_id else ''} "
+                f"{symbol(enable_type[0])}{t('list.label_retweet')} "
+                f"{symbol(enable_type[1])}{t('list.label_quote')} "
+                f"{symbol(enable_media_type[0])}{t('list.label_text')} "
+                f"{symbol(enable_media_type[1])}{t('list.label_media')}, "
+                f"{t('list.label_using')} {client_used}"
+            )
 
         async def get_page(page: int):
             offset = (page - 1) * PSIZE
