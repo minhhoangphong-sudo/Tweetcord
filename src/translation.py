@@ -18,8 +18,7 @@ TRANSLATION_LANGUAGES: dict[str, str] = {
     "en": "English",
     "fr": "French",
     "ja": "Japanese",
-    "zh-cn": "Chinese (Simplified)",
-    "zh-tw": "Chinese (Traditional)",
+    "zh": "Chinese",
     "es": "Spanish",
     "ar": "Arabic",
     "th": "Thai",
@@ -32,6 +31,11 @@ TRANSLATION_LANGUAGES: dict[str, str] = {
     "it": "Italian",
     "el": "Greek",
     "tr": "Turkish",
+}
+
+# Codes saved by older versions that now mean one of the languages above.
+LEGACY_LANGUAGE_CODES: dict[str, str] = {
+    "zh-cn": "zh",  # "Chinese (Simplified)" became plain "Chinese"
 }
 
 # Only FxTwitter / FixupX links (and the built-in embeds, which read from the
@@ -53,7 +57,8 @@ DEFAULT_LANGUAGE: str = _default_language()
 
 def normalize_language_code(code: str | None) -> str:
     """Lowercase code used in the link. Missing or unusable values mean the default language."""
-    return validate_and_normalize_language(code) or DEFAULT_LANGUAGE
+    normalized = validate_and_normalize_language(code)
+    return LEGACY_LANGUAGE_CODES.get(normalized, normalized) if normalized else DEFAULT_LANGUAGE
 
 
 def get_translation_language_name(code: str | None) -> str:

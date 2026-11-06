@@ -46,8 +46,7 @@ def validate_and_normalize_language(lang_code: str) -> str | None:
     normalized = lang_code.strip().lower().replace('_', '-')
 
     normalization_map = {
-        'zh': 'zh-cn',
-        'cn': 'zh-cn',
+        'cn': 'zh',
         'tw': 'zh-tw',
         'jp': 'ja',
         'kr': 'ko',
