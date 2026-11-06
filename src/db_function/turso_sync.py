@@ -105,6 +105,49 @@ def _local_schema(path: str) -> list[tuple[str, str]]:
     return [(n, s) for n, s in rows if not _is_internal(n)]
 
 
+def _local_column_info(path: str, table: str) -> list[tuple]:
+    with sqlite3.connect(path) as conn:
+        return conn.execute(f'PRAGMA table_info("{table}")').fetchall()
+
+
+async def _ensure_remote_columns(client, path: str, belongs) -> None:
+    """Apply additive local column migrations to existing remote tables."""
+    local_tables = await asyncio.to_thread(_local_schema, path)
+    remote_tables = {
+        name for name, _ in await _remote_schema(client, belongs)
+    }
+
+    for table, _ in local_tables:
+        if table not in remote_tables:
+            continue
+
+        # SELECT ... LIMIT 0 returns the remote column names without reading rows.
+        remote_info = await client.execute(f'SELECT * FROM "{table}" LIMIT 0')
+        remote_columns = set(remote_info.columns)
+        local_columns = await asyncio.to_thread(_local_column_info, path, table)
+
+        for column in local_columns:
+            # PRAGMA table_info: cid, name, type, notnull, dflt_value, pk
+            _, name, column_type, not_null, default_value, primary_key = column
+            if name in remote_columns:
+                continue
+
+            definition = f'"{name}" {column_type or "TEXT"}'
+            if default_value is not None:
+                definition += f' DEFAULT {default_value}'
+            if not_null:
+                definition += ' NOT NULL'
+            if primary_key:
+                log.warning(
+                    f'cannot add primary-key column {name} to remote table {table} automatically'
+                )
+                continue
+
+            await client.execute(f'ALTER TABLE "{table}" ADD COLUMN {definition}')
+            remote_columns.add(name)
+            log.info(f'added remote column {table}.{name} to match local schema')
+
+
 def _table_meta(conn: sqlite3.Connection, table: str) -> tuple[list[str], list[str]]:
     info = conn.execute(f'PRAGMA table_info("{table}")').fetchall()
     cols = [r[1] for r in info]
@@ -291,6 +334,12 @@ async def push_now() -> bool:
         if not statements:
             return True
         async with _create_client() as client:
+            for filename, belongs in _FILES:
+                await _ensure_remote_columns(
+                    client,
+                    _local_path(filename),
+                    belongs
+                )
             await _run_batches(client, statements)
         _state['baseline'] = new_baseline
         log.info(f'pushed {len(statements)} change(s) to turso')
