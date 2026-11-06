@@ -36,6 +36,7 @@ async def get_parsed_tweet(tweet: Tweet, session: aiohttp.ClientSession = None, 
         FX_SETTINGS['media']['enabled']
         or FX_SETTINGS['rt_text']['enabled']
         or FX_SETTINGS['auto_translation']
+        or bool(lang)
         or (FX_SETTINGS['mosaic'] and len(tweet.media) > 1)
     ):
         if session:

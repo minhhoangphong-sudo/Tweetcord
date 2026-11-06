@@ -159,16 +159,17 @@ class AccountTracker():
                         await cursor.execute('SELECT id FROM user WHERE username = ?', (username,))
                         user = await cursor.fetchone()
                         if user:
-                            if IS_TRANSLATION_ENABLED:
-                                await cursor.execute('''
-                                    SELECT n.*, suc.translate AS server_translate
-                                    FROM notification n
-                                    JOIN channel c ON n.channel_id = c.id
-                                    LEFT JOIN server_user_config suc ON c.server_id = suc.server_id AND n.user_id = suc.user_id
-                                    WHERE n.user_id = ? AND n.enabled = 1
-                                ''', (user['id'],))
-                            else:
-                                await cursor.execute('SELECT * FROM notification WHERE user_id = ? AND enabled = 1', (user['id'],))
+                            await cursor.execute('''
+                                SELECT
+                                    n.*,
+                                    suc.translate AS server_translate,
+                                    suc.translation_enabled AS server_translation_enabled
+                                FROM notification n
+                                JOIN channel c ON n.channel_id = c.id
+                                LEFT JOIN server_user_config suc
+                                  ON c.server_id = suc.server_id AND n.user_id = suc.user_id
+                                WHERE n.user_id = ? AND n.enabled = 1
+                            ''', (user['id'],))
                             notifications = await cursor.fetchall()
             except aiosqlite.OperationalError as e:
                 if "database is locked" in str(e):
@@ -204,7 +205,12 @@ class AccountTracker():
                     if keyword_rules and not passes_filter(keyword_rules, channel.guild.id, user['id'], data['channel_id'], tweet_text):
                         continue
                     
-                    lang = (data['server_translate'] or configs['embed']['trans_default_lang']) if IS_TRANSLATION_ENABLED else None
+                    translation_enabled = (
+                        bool(data['server_translation_enabled'])
+                        if data['server_translation_enabled'] is not None
+                        else IS_TRANSLATION_ENABLED
+                    )
+                    lang = (data['server_translate'] or 'en') if translation_enabled else None
                     
                     if lang not in content_cache:
                         p_tweet, embeds = None, None
@@ -226,8 +232,8 @@ class AccountTracker():
                     try:
                         url = tweet.url
                         if EMBED_TYPE == 'proxy':
-                            url = url.replace('twitter', DOMAIN_NAME)
-                            if IS_TRANSLATION_ENABLED:
+                            url = re.sub(r'(?:twitter|x)\.com', f'{DOMAIN_NAME}.com', url)
+                            if translation_enabled:
                                 url += f"/{lang}"
 
                         mention = f"{channel.guild.get_role(int(data['role_id'])).mention} " if data['role_id'] else ''
