@@ -32,12 +32,6 @@ async def _ensure_translation_schema(db: aiosqlite.Connection) -> None:
         # NULL means "follow the existing global auto_translation config".
         await db.execute("ALTER TABLE server_user_config ADD COLUMN translation_enabled INTEGER DEFAULT NULL")
 
-    await db.execute("""
-        UPDATE server_user_config
-        SET translate = 'en'
-        WHERE translate IS NULL OR TRIM(translate) = ''
-    """)
-
 
 async def init_db():
     data_path = os.getenv('DATA_PATH')
