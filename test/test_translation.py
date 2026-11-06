@@ -20,8 +20,7 @@ class TestTranslationLanguages(unittest.TestCase):
             "en": "English",
             "fr": "French",
             "ja": "Japanese",
-            "zh-cn": "Chinese (Simplified)",
-            "zh-tw": "Chinese (Traditional)",
+            "zh": "Chinese",
             "es": "Spanish",
             "ar": "Arabic",
             "th": "Thai",
@@ -38,14 +37,23 @@ class TestTranslationLanguages(unittest.TestCase):
         self.assertEqual(TRANSLATION_LANGUAGES, expected)
 
     def test_codes_are_lowercase_and_fit_discord_choices(self):
-        # codes go straight into the link (.../status/123/zh-cn) and Discord allows 25 choices
+        # codes go straight into the link (.../status/123/zh) and Discord allows 25 choices
         self.assertTrue(all(code == code.lower() for code in TRANSLATION_LANGUAGES))
         self.assertLessEqual(len(TRANSLATION_LANGUAGES), 25)
 
     def test_language_names_are_case_insensitive(self):
-        self.assertEqual(get_translation_language_name("zh-cn"), "Chinese (Simplified)")
-        self.assertEqual(get_translation_language_name("ZH-tw"), "Chinese (Traditional)")
-        self.assertEqual(get_translation_language_name("zh_CN"), "Chinese (Simplified)")
+        self.assertEqual(get_translation_language_name("zh"), "Chinese")
+        self.assertEqual(get_translation_language_name("ZH"), "Chinese")
+        self.assertEqual(get_translation_language_name("FR"), "French")
+
+    def test_chinese_traditional_is_no_longer_an_option(self):
+        self.assertNotIn("zh-tw", TRANSLATION_LANGUAGES)
+        self.assertNotIn("zh-cn", TRANSLATION_LANGUAGES)
+        self.assertFalse(any("Traditional" in name or "Simplified" in name for name in TRANSLATION_LANGUAGES.values()))
+
+    def test_old_simplified_code_now_means_chinese(self):
+        self.assertEqual(get_translation_language_name("zh-cn"), "Chinese")
+        self.assertEqual(get_translation_language_name("zh_CN"), "Chinese")
 
     def test_missing_language_defaults_to_english(self):
         self.assertEqual(get_translation_language_name(None), "English")
@@ -57,8 +65,9 @@ class TestTranslationLanguages(unittest.TestCase):
 
 class TestNormalizeLanguageCode(unittest.TestCase):
     def test_old_capitalised_codes_become_lowercase(self):
-        self.assertEqual(normalize_language_code("zh-CN"), "zh-cn")
-        self.assertEqual(normalize_language_code("ZH_tw"), "zh-tw")
+        self.assertEqual(normalize_language_code("ZH"), "zh")
+        self.assertEqual(normalize_language_code("zh-CN"), "zh")
+        self.assertEqual(normalize_language_code("cn"), "zh")
         self.assertEqual(normalize_language_code(" FR "), "fr")
 
     def test_missing_or_unusable_values_use_the_default(self):
@@ -74,7 +83,8 @@ class TestResolveTranslation(unittest.TestCase):
     def test_switch_on_translates_to_the_saved_language(self):
         with mock.patch.object(translation, 'TRANSLATION_SUPPORTED', True):
             self.assertEqual(resolve_translation(1, 'fr'), 'fr')
-            self.assertEqual(resolve_translation(True, 'zh-CN'), 'zh-cn')
+            self.assertEqual(resolve_translation(True, 'zh-CN'), 'zh')
+            self.assertEqual(resolve_translation(True, 'zh'), 'zh')
 
     def test_switch_on_without_a_language_uses_the_default(self):
         with mock.patch.object(translation, 'TRANSLATION_SUPPORTED', True):
