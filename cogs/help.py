@@ -25,7 +25,7 @@ OWNER_ROOTS = {'load', 'unload', 'reload', 'download_log', 'download_data', 'upl
 
 # Shown in this order; anything not listed goes at the end, alphabetically.
 ORDER = [
-    'help', 'add notifier', 'remove notifier', 'customize settings', 'customize translation', 'translation language', 'translation toggle',
+    'help', 'add notifier', 'remove notifier', 'customize settings', 'translation language', 'translation toggle',
     'list users', 'keyword filter add', 'keyword filter remove', 'keyword filter list', 'sync', 'yap', 'access add', 'access remove', 'access list', 'access clear',
     'load', 'unload', 'reload', 'download_log', 'download_data', 'upload_data', 'send',
 ]

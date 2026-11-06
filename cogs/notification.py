@@ -7,7 +7,7 @@ from tweety import Twitter
 from tweety.exceptions import UserProtected
 
 from configs.constants import AUTOCOMPLETE_MAX_CHOICES
-from configs.load_configs import configs, IS_TRANSLATION_ENABLED
+from configs.load_configs import configs
 from core.classes import Cog_Extension
 from src.i18n import t
 from src.discord_ui.fetch_tracked_channels import fetch_tracked_channels
@@ -17,9 +17,15 @@ from src.notification.account_tracker import AccountTracker
 from src.permission import ADMINISTRATOR
 from src.role_check import has_allowed_role
 from src.db_function.readonly_db import connect_readonly
-from src.utils import get_accounts, get_lock, get_utcnow, validate_and_normalize_language
+from src.utils import get_accounts, get_lock, get_utcnow
 from src.presence_updater import update_presence
-from src.translation import TRANSLATION_LANGUAGES
+from src.translation import (
+    TRANSLATION_LANGUAGES,
+    TRANSLATION_SUPPORTED,
+    get_translation_language_name,
+    normalize_language_code,
+    resolve_translation,
+)
 
 log = setup_logger(__name__)
 lock = get_lock()
@@ -29,8 +35,8 @@ TRANSLATION_LANGUAGE_CHOICES = [
     for code, name in TRANSLATION_LANGUAGES.items()
 ]
 TRANSLATION_TOGGLE_CHOICES = [
-    app_commands.Choice(name='On', value='on'),
-    app_commands.Choice(name='Off', value='off'),
+    app_commands.Choice(name=t('commands.translation.toggle.choices.enabled'), value='on'),
+    app_commands.Choice(name=t('commands.translation.toggle.choices.disabled'), value='off'),
 ]
 
 class Notification(Cog_Extension):
@@ -41,10 +47,7 @@ class Notification(Cog_Extension):
     add_group = app_commands.Group(name='add', description=t('commands.add.description'))
     remove_group = app_commands.Group(name='remove', description=t('commands.remove.description'))
     customize_group = app_commands.Group(name='customize', description=t('commands.customize.description'))
-    translation_group = app_commands.Group(
-        name='translation',
-        description='Manage translated notification links and content for tracked users.'
-    )
+    translation_group = app_commands.Group(name='translation', description=t('commands.translation.description'), guild_only=True)
 
     @add_group.command(name='notifier', description=t('commands.add.notifier.description'))
     @has_allowed_role()
@@ -291,43 +294,36 @@ class Notification(Cog_Extension):
                 else:
                     await itn.response.send_message(t('notification.customize.settings.notifier_not_found', username=username, channel_mention=channel.mention))
 
-    @customize_group.command(name='translation', description=t('commands.customize.translation.description'))
-    @has_allowed_role()
-    @app_commands.describe(
-        username=t('commands.customize.translation.params.username'),
-        language=t('commands.customize.translation.params.language'),
-    )
-    async def customize_translation(self, itn: discord.Interaction, username: str, language: str = None):
-        """Set customized translation language for a tracked account.
+    async def _save_translation_setting(self, itn: discord.Interaction, username: str, *, language: str | None = None, enabled: bool | None = None):
+        """Save one translation setting for a tracked user of this server.
 
-        Parameters
-        -----------
-        username: str
-            The username of the tracked account you want to set customized translation language.
-        language: str
-            The language code you want to translate to (e.g. en, ja). Leave it empty to use default.
+        Returns (username as stored, saved language or None, language it translates into or None when off),
+        or None when the user isn't tracked on this server.
         """
-        if not IS_TRANSLATION_ENABLED:
-            await itn.response.send_message(t('notification.customize.translation.not_enabled'))
-            return
-
-        lang_code = validate_and_normalize_language(language) if language else 'en'
-        if language and lang_code is None:
-            await itn.response.send_message(t('notification.customize.translation.invalid_lang'))
-            return
-
-        await itn.response.defer()
+        guild_id = str(itn.guild_id)
 
         async with aiosqlite.connect(os.path.join(os.getenv('DATA_PATH'), 'tracked_accounts.db')) as db:
-            await db.execute('PRAGMA synchronous = OFF')
-            await db.execute('PRAGMA count_changes = OFF')
-
-            db.row_factory = aiosqlite.Row
             async with db.cursor() as cursor:
-                await cursor.execute('SELECT user.id FROM user JOIN notification ON user.id = notification.user_id JOIN channel ON notification.channel_id = channel.id WHERE username = ? COLLATE NOCASE AND channel.server_id = ? AND notification.enabled = 1', (username, str(itn.guild_id)))
+                await cursor.execute(
+                    '''
+                    SELECT u.id, u.username
+                    FROM user u
+                    JOIN notification n ON n.user_id = u.id
+                    JOIN channel c ON c.id = n.channel_id
+                    WHERE u.username = ? COLLATE NOCASE
+                      AND c.server_id = ?
+                      AND n.enabled = 1
+                    LIMIT 1
+                    ''',
+                    (username.strip().lstrip('@'), guild_id)
+                )
                 match_user = await cursor.fetchone()
-                if match_user is not None:
-                    async with lock:
+                if match_user is None:
+                    return None
+                user_id, stored_username = match_user
+
+                async with lock:
+                    if language is not None:
                         await cursor.execute(
                             '''
                             INSERT INTO server_user_config (server_id, user_id, translate)
@@ -335,132 +331,106 @@ class Notification(Cog_Extension):
                             ON CONFLICT(server_id, user_id)
                             DO UPDATE SET translate = excluded.translate
                             ''',
-                            (str(itn.guild_id), match_user['id'], lang_code)
+                            (guild_id, user_id, language)
                         )
-                        await db.commit()
-                    
-                    if language is None:
-                        await itn.followup.send(t('notification.customize.translation.success_default', username=username, default_lang='en'))
-                    else:
-                        await itn.followup.send(t('notification.customize.translation.success_set', username=username, lang_code=lang_code))
-                else:
-                    await itn.followup.send(t('notification.customize.translation.user_not_found', username=username))
+                    if enabled is not None:
+                        # translate stays NULL (= the default language) until /translation language sets one
+                        await cursor.execute(
+                            '''
+                            INSERT INTO server_user_config (server_id, user_id, translate, translation_enabled)
+                            VALUES (?, ?, NULL, ?)
+                            ON CONFLICT(server_id, user_id)
+                            DO UPDATE SET translation_enabled = excluded.translation_enabled
+                            ''',
+                            (guild_id, user_id, int(enabled))
+                        )
+                    await db.commit()
 
+                await cursor.execute(
+                    'SELECT translate, translation_enabled FROM server_user_config WHERE server_id = ? AND user_id = ?',
+                    (guild_id, user_id)
+                )
+                saved_language, saved_enabled = await cursor.fetchone()
 
-    @translation_group.command(name='language', description='Set the translation language for a tracked user.')
+        return stored_username, saved_language, resolve_translation(saved_enabled, saved_language)
+
+    @translation_group.command(name='language', description=t('commands.translation.language.description'))
     @has_allowed_role()
     @app_commands.choices(language=TRANSLATION_LANGUAGE_CHOICES)
     @app_commands.describe(
-        language='Language to translate notifications into.',
-        username='Tracked X/Twitter username.'
+        language=t('commands.translation.language.params.language'),
+        username=t('commands.translation.language.params.username'),
     )
     async def translation_language(self, itn: discord.Interaction, language: str, username: str):
-        'Set the destination language for this tracked user in this server.'
-        if language not in TRANSLATION_LANGUAGES:
-            await itn.response.send_message('That translation language is not supported.', ephemeral=True)
+        """Set the language a tracked user's notifications are translated into.
+
+        Parameters
+        -----------
+        language: str
+            The language to translate to.
+        username: str
+            The username of the tracked account.
+        """
+        code = normalize_language_code(language)
+        if code not in TRANSLATION_LANGUAGES:
+            await itn.response.send_message(t('notification.translation.invalid_language'), ephemeral=True)
+            return
+        if not TRANSLATION_SUPPORTED:
+            await itn.response.send_message(t('notification.translation.not_supported'), ephemeral=True)
             return
 
         await itn.response.defer(ephemeral=True)
 
-        async with aiosqlite.connect(os.path.join(os.getenv('DATA_PATH'), 'tracked_accounts.db')) as db:
-            async with db.cursor() as cursor:
-                await cursor.execute(
-                    '''
-                    SELECT u.id
-                    FROM user u
-                    JOIN notification n ON n.user_id = u.id
-                    JOIN channel c ON c.id = n.channel_id
-                    WHERE u.username = ? COLLATE NOCASE
-                      AND c.server_id = ?
-                      AND n.enabled = 1
-                    LIMIT 1
-                    ''',
-                    (username, str(itn.guild_id))
-                )
-                match_user = await cursor.fetchone()
+        saved = await self._save_translation_setting(itn, username, language=code)
+        if saved is None:
+            await itn.followup.send(t('notification.translation.user_not_found', username=username), ephemeral=True)
+            return
 
-                if match_user is None:
-                    await itn.followup.send(
-                        f'`{username}` is not currently tracked on this server.',
-                        ephemeral=True
-                    )
-                    return
+        stored_username, _, active_language = saved
+        message = t('notification.translation.language.success', username=stored_username, language=get_translation_language_name(code), code=code)
+        if active_language is None:
+            # the language is saved, but nothing is translated until translation is switched on
+            message += '\n' + t('notification.translation.language.currently_off')
+        await itn.followup.send(message, ephemeral=True)
 
-                async with lock:
-                    await cursor.execute(
-                        '''
-                        INSERT INTO server_user_config (server_id, user_id, translate)
-                        VALUES (?, ?, ?)
-                        ON CONFLICT(server_id, user_id)
-                        DO UPDATE SET translate = excluded.translate
-                        ''',
-                        (str(itn.guild_id), match_user[0], language)
-                    )
-                    await db.commit()
-
-        await itn.followup.send(
-            f'Translation for **{username}** is set to **{TRANSLATION_LANGUAGES[language]}** (`{language}`).',
-            ephemeral=True
-        )
-
-    @translation_group.command(name='toggle', description='Turn translation on or off for a tracked user.')
+    @translation_group.command(name='toggle', description=t('commands.translation.toggle.description'))
     @has_allowed_role()
     @app_commands.choices(on_off=TRANSLATION_TOGGLE_CHOICES)
     @app_commands.describe(
-        on_off='Turn translation on or off.',
-        username='Tracked X/Twitter username.'
+        on_off=t('commands.translation.toggle.params.on_off'),
+        username=t('commands.translation.toggle.params.username'),
     )
     async def translation_toggle(self, itn: discord.Interaction, on_off: str, username: str):
-        'Enable or disable translated notifications for this tracked user in this server.'
-        if on_off.lower() not in {'on', 'off'}:
-            await itn.response.send_message('Choose either On or Off.', ephemeral=True)
+        """Turn translation on or off for a tracked user.
+
+        Parameters
+        -----------
+        on_off: str
+            Turn translation on or off.
+        username: str
+            The username of the tracked account.
+        """
+        state = on_off.strip().lower()
+        if state not in ('on', 'off'):
+            await itn.response.send_message(t('notification.translation.invalid_toggle'), ephemeral=True)
+            return
+        if not TRANSLATION_SUPPORTED:
+            await itn.response.send_message(t('notification.translation.not_supported'), ephemeral=True)
             return
 
-        enabled = on_off.lower() == 'on'
         await itn.response.defer(ephemeral=True)
 
-        async with aiosqlite.connect(os.path.join(os.getenv('DATA_PATH'), 'tracked_accounts.db')) as db:
-            async with db.cursor() as cursor:
-                await cursor.execute(
-                    '''
-                    SELECT u.id
-                    FROM user u
-                    JOIN notification n ON n.user_id = u.id
-                    JOIN channel c ON c.id = n.channel_id
-                    WHERE u.username = ? COLLATE NOCASE
-                      AND c.server_id = ?
-                      AND n.enabled = 1
-                    LIMIT 1
-                    ''',
-                    (username, str(itn.guild_id))
-                )
-                match_user = await cursor.fetchone()
+        saved = await self._save_translation_setting(itn, username, enabled=(state == 'on'))
+        if saved is None:
+            await itn.followup.send(t('notification.translation.user_not_found', username=username), ephemeral=True)
+            return
 
-                if match_user is None:
-                    await itn.followup.send(
-                        f'`{username}` is not currently tracked on this server.',
-                        ephemeral=True
-                    )
-                    return
-
-                async with lock:
-                    await cursor.execute(
-                        '''
-                        INSERT INTO server_user_config
-                            (server_id, user_id, translate, translation_enabled)
-                        VALUES (?, ?, 'en', ?)
-                        ON CONFLICT(server_id, user_id)
-                        DO UPDATE SET translation_enabled = excluded.translation_enabled
-                        ''',
-                        (str(itn.guild_id), match_user[0], 1 if enabled else 0)
-                    )
-                    await db.commit()
-
-        state = 'ON' if enabled else 'OFF'
-        await itn.followup.send(
-            f'Translation for **{username}** is now **{state}**.',
-            ephemeral=True
-        )
+        stored_username, saved_language, _ = saved
+        if state == 'on':
+            message = t('notification.translation.toggle.enabled', username=stored_username, language=get_translation_language_name(saved_language))
+        else:
+            message = t('notification.translation.toggle.disabled', username=stored_username)
+        await itn.followup.send(message, ephemeral=True)
 
     @r_notifier.autocomplete('channel_id')
     async def get_channels_for_r_notifier(self, itn: discord.Interaction, input_channel: str) -> list[app_commands.Choice[str]]:        
@@ -484,7 +454,6 @@ class Notification(Cog_Extension):
                 users = [row['username'] async for row in cursor]
                 return [app_commands.Choice(name=row, value=row) for row in users if username.lower() in row.lower()][:AUTOCOMPLETE_MAX_CHOICES]
 
-    @customize_translation.autocomplete('username')
     @translation_language.autocomplete('username')
     @translation_toggle.autocomplete('username')
     async def get_guild_enabled_users(self, itn: discord.Interaction, username: str) -> list[app_commands.Choice[str]]:

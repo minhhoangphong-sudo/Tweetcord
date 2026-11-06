@@ -7,7 +7,7 @@ from discord.ext import commands
 
 from core.classes import Cog_Extension
 from configs.constants import AUTOCOMPLETE_MAX_CHOICES, AUTOCOMPLETE_MAX_CHOICE_LENGTH
-from configs.load_configs import configs, IS_TRANSLATION_ENABLED
+from configs.load_configs import configs
 from src.i18n import t
 from src.permission import ADMINISTRATOR
 from src.role_check import has_allowed_role
@@ -15,7 +15,7 @@ from src.utils import str_to_bool as stb
 from src.db_function.readonly_db import connect_readonly
 from src.discord_ui.fetch_tracked_channels import fetch_tracked_channels
 from src.discord_ui.pagination import Pagination
-from src.translation import get_translation_language_name
+from src.translation import get_translation_language_name, resolve_translation
 
 CHECK = '\u2705'
 XMARK = '\u274C'
@@ -58,7 +58,7 @@ class ListUsers(Cog_Extension):
                     notification.enable_type,
                     notification.enable_media_type,
                     user.client_used,
-                    COALESCE(server_user_config.translate, 'en'),
+                    server_user_config.translate,
                     server_user_config.translation_enabled
                 FROM user
                 JOIN notification
@@ -85,17 +85,8 @@ class ListUsers(Cog_Extension):
             translation_language,
             translation_enabled_override
         ) in enumerate(user_channel_role_data):
-            translation_enabled = (
-                bool(translation_enabled_override)
-                if translation_enabled_override is not None
-                else IS_TRANSLATION_ENABLED
-            )
-            translation_label = (
-                f" (translated to {get_translation_language_name(translation_language)})"
-                if translation_enabled else ''
-            )
-            formatted_data.append(
-                f"{i + 1}. ```{username}```{translation_label} <#{channel_id}>"
+            line = (
+                f"{i + 1}. ```{username}``` <#{channel_id}>"
                 f"{f' <@&{role_id}>' if role_id else ''} "
                 f"{symbol(enable_type[0])}{t('list.label_retweet')} "
                 f"{symbol(enable_type[1])}{t('list.label_quote')} "
@@ -103,6 +94,11 @@ class ListUsers(Cog_Extension):
                 f"{symbol(enable_media_type[1])}{t('list.label_media')}, "
                 f"{t('list.label_using')} {client_used}"
             )
+            # only when translation is on for this account
+            translated_to = resolve_translation(translation_enabled_override, translation_language)
+            if translated_to:
+                line += f", {t('list.label_translated', language=get_translation_language_name(translated_to))}"
+            formatted_data.append(line)
 
         async def get_page(page: int):
             offset = (page - 1) * PSIZE
