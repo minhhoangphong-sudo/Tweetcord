@@ -100,14 +100,23 @@ The notification will be sent in this format when a tweet is posted (here is a r
 https://twitter.com/nyachodayo/status/1869000108697960952
 ```
 
-👉 `/customize translation` `username` | `language`
+👉 `/translation language` `language` `username`
 
 | Parameter | Type | Description |
 | --------- | ---- | ----------- |
-| `username` | str | The username of the tracked account you want to set customized translation language |
-| `language` | str | The language code you want to translate to (e.g. en, ja), leave it empty to use default. |
+| `language` | choice | The language to translate to: English, French, Japanese, Chinese (Simplified), Chinese (Traditional), Spanish, Arabic, Thai, Tagalog, Korean, German, Polish, Swedish, Russian, Italian, Greek or Turkish. The default is English (`en`). |
+| `username` | str | The username of the tracked account. |
 
-Note: You need to set `auto_translation` to `true` in the `embed` settings to use this (only available when the `embed.type` is set to `built_in` mode or when `fx` is chosen as the embedding proxy service in `proxy` mode; other embedding proxy services do not support this feature).
+👉 `/translation toggle` `on_off` `username`
+
+| Parameter | Type | Description |
+| --------- | ---- | ----------- |
+| `on_off` | choice | Turn translation on or off for the tracked account. |
+| `username` | str | The username of the tracked account. |
+
+The chosen language code is added to the end of the tweet link (e.g. `https://fixupx.com/user/status/123/fr`). Both commands only affect the account on the server where you run them, and `/list users` shows `translated to <language>` after the account while its translation is on. Until you use `/translation toggle`, translation follows the `auto_translation` setting in the `embed` configs.
+
+Note: Translation is only available when the `embed.type` is set to `built_in` mode or when `fx` is chosen as the embedding proxy service in `proxy` mode; other embedding proxy services do not support this feature. FxTwitter/FixupX translate through X's own translation, so a language that X can't translate may be left untranslated.
 
 </details>
 

@@ -100,14 +100,23 @@ Tweetcord是一個Discord機器人，它使用[tweety-ns](https://github.com/mah
 https://twitter.com/nyachodayo/status/1869000108697960952
 ```
 
-👉 `/customize translation` `username` | `language`
+👉 `/translation language` `language` `username`
 
 | 參數 | 類型 | 描述 |
 |------|------|-----|
-| `username` | str | 欲設定自定義翻譯語言的Twitter用戶的用戶名 |
-| `language` | str | 欲翻譯成的語言代碼（例如 en、ja），留空則使用預設值 |
+| `language` | choice | 欲翻譯成的語言：English、French、Japanese、Chinese (Simplified)、Chinese (Traditional)、Spanish、Arabic、Thai、Tagalog、Korean、German、Polish、Swedish、Russian、Italian、Greek、Turkish。預設為英文（`en`）。 |
+| `username` | str | 追蹤的 Twitter 用戶的用戶名 |
 
-【注意】：你需要在 `embed` 設定中將 `auto_translation` 設為 `true` 才能使用（僅能在 `embed.type` 選擇了 `built_in` 模式或是在 `proxy` 模式中選用 `fx` 作為嵌入代理服務時使用，其他嵌入代理服務並不支援此功能）。
+👉 `/translation toggle` `on_off` `username`
+
+| 參數 | 類型 | 描述 |
+|------|------|-----|
+| `on_off` | choice | 開啟或關閉該追蹤帳號的翻譯 |
+| `username` | str | 追蹤的 Twitter 用戶的用戶名 |
+
+選擇的語言代碼會加在推文連結的結尾（例如 `https://fixupx.com/user/status/123/fr`）。這兩個指令只會影響你執行指令的那個伺服器中的該帳號，翻譯開啟時，`/list users` 會在該帳號後面顯示 `翻譯為 <語言>`。在使用 `/translation toggle` 之前，翻譯會依照 `embed` 設定中的 `auto_translation`。
+
+【注意】：僅能在 `embed.type` 選擇了 `built_in` 模式或是在 `proxy` 模式中選用 `fx` 作為嵌入代理服務時使用，其他嵌入代理服務並不支援此功能。FxTwitter/FixupX 是透過 X 本身的翻譯功能翻譯，X 無法翻譯的語言可能不會被翻譯。
 
 </details>
 
