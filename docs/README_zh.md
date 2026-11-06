@@ -104,7 +104,7 @@ https://twitter.com/nyachodayo/status/1869000108697960952
 
 | 參數 | 類型 | 描述 |
 |------|------|-----|
-| `language` | choice | 欲翻譯成的語言：English、French、Japanese、Chinese (Simplified)、Chinese (Traditional)、Spanish、Arabic、Thai、Tagalog、Korean、German、Polish、Swedish、Russian、Italian、Greek、Turkish。預設為英文（`en`）。 |
+| `language` | choice | 欲翻譯成的語言：English、French、Japanese、Chinese、Spanish、Arabic、Thai、Tagalog、Korean、German、Polish、Swedish、Russian、Italian、Greek、Turkish。預設為英文（`en`）。 |
 | `username` | str | 追蹤的 Twitter 用戶的用戶名 |
 
 👉 `/translation toggle` `on_off` `username`

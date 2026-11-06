@@ -104,7 +104,7 @@ https://twitter.com/nyachodayo/status/1869000108697960952
 
 | Parameter | Type | Description |
 | --------- | ---- | ----------- |
-| `language` | choice | The language to translate to: English, French, Japanese, Chinese (Simplified), Chinese (Traditional), Spanish, Arabic, Thai, Tagalog, Korean, German, Polish, Swedish, Russian, Italian, Greek or Turkish. The default is English (`en`). |
+| `language` | choice | The language to translate to: English, French, Japanese, Chinese, Spanish, Arabic, Thai, Tagalog, Korean, German, Polish, Swedish, Russian, Italian, Greek or Turkish. The default is English (`en`). |
 | `username` | str | The username of the tracked account. |
 
 👉 `/translation toggle` `on_off` `username`
